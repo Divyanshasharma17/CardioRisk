@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Prediction History{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+
+  <!-- Risk Trend Chart -->
+  <div class="predict-card" style="margin-bottom:1.5rem;">
+    <h2>📈 Your Risk Trend</h2>
+    <p class="subtitle">Risk probability over all your predictions.</p>
+    <canvas id="trendChart" height="80"></canvas>
+  </div>
+
+  <!-- History Table -->
+  <div class="predict-card">
+    <h2>🗂 Prediction History</h2>
+    <p class="subtitle">All {{ records|length }} prediction(s) for your account.</p>
+
+    {% if records %}
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Date</th><th>Age</th><th>Gender</th>
+            <th>BP (sys/dia)</th><th>Cholesterol</th>
+            <th>Risk Level</th><th>Probability</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ r.created_at.strftime("%d %b %Y, %H:%M") if r.created_at else "—" }}</td>
+            <td>{{ r.age }}</td>
+            <td>{{ "Female" if r.gender == 1 else "Male" }}</td>
+            <td>{{ r.ap_hi }}/{{ r.ap_lo }}</td>
+            <td>{{ ["","Normal","Above Normal","Well Above"][r.cholesterol] }}</td>
+            <td><span class="badge {{ r.risk_level | lower }}">{{ r.risk_level }}</span></td>
+            <td>{{ "%.1f"|format(r.risk_prob * 100) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:#718096; text-align:center; padding:2rem;">
+      No predictions yet. <a href="/predict-form">Make your first prediction →</a>
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  (async () => {
+    const res  = await fetch("/trend-data");
+    const json = await res.json();
+    const data = json.data || [];
+    if (!data.length) return;
+
+    const colorMap = { High: "#e74c3c", Moderate: "#f39c12", Low: "#2ecc71" };
+
+    new Chart(document.getElementById("trendChart"), {
+      type: "line",
+      data: {
+        labels: data.map(d => d.date),
+        datasets: [{
+          label: "Risk Probability",
+          data: data.map(d => +(d.prob * 100).toFixed(1)),
+          borderColor: "#3498db",
+          backgroundColor: "rgba(52,152,219,0.08)",
+          tension: 0.35,
+          fill: true,
+          pointRadius: 6,
+          pointBackgroundColor: data.map(d => colorMap[d.level] || "#3498db"),
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+        }]
+      },
+      options: {
+        scales: {
+          y: { min: 0, max: 100, ticks: { callback: v => v + "%" } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y}% — ${data[ctx.dataIndex].level} Risk`
+            }
+          }
+        }
+      }
+    });
+  })();
+</script>
+{% endblock %}

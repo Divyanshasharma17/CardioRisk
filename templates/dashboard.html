@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CardioRisk Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <span class="nav-brand">❤️ CardioRisk</span>
+    <div class="nav-links">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/predict-form">New Prediction</a>
+      <a href="/logout">Logout ({{ username }})</a>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Summary cards -->
+    <section class="cards">
+      <div class="card">
+        <span class="label">Total Predictions</span>
+        <span class="value" id="total">—</span>
+      </div>
+      <div class="card high">
+        <span class="label">High Risk</span>
+        <span class="value" id="high">—</span>
+      </div>
+      <div class="card moderate">
+        <span class="label">Moderate Risk</span>
+        <span class="value" id="moderate">—</span>
+      </div>
+      <div class="card low">
+        <span class="label">Low Risk</span>
+        <span class="value" id="low">—</span>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="charts">
+      <div class="chart-box">
+        <h2>Risk Level Distribution</h2>
+        <canvas id="riskPieChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h2>Recent Predictions (Risk Probability)</h2>
+        <canvas id="riskLineChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Recent records table -->
+    <section class="table-section">
+      <h2>Recent Predictions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Age</th><th>Gender</th><th>BP (sys/dia)</th>
+            <th>Cholesterol</th><th>Risk Level</th><th>Probability</th><th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody">
+          <tr><td colspan="8">Loading...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    // ── Fetch records from API ────────────────────────────────────────────────
+    async function fetchRecords() {
+      const res = await fetch("/records");
+      const json = await res.json();
+      return json.data || [];
+    }
+
+    // ── Populate summary cards ────────────────────────────────────────────────
+    function updateCards(records) {
+      document.getElementById("total").textContent = records.length;
+      document.getElementById("high").textContent =
+        records.filter(r => r.risk_level === "High").length;
+      document.getElementById("moderate").textContent =
+        records.filter(r => r.risk_level === "Moderate").length;
+      document.getElementById("low").textContent =
+        records.filter(r => r.risk_level === "Low").length;
+    }
+
+    // ── Render pie chart ──────────────────────────────────────────────────────
+    function renderPie(records) {
+      const counts = { High: 0, Moderate: 0, Low: 0 };
+      records.forEach(r => counts[r.risk_level]++);
+      new Chart(document.getElementById("riskPieChart"), {
+        type: "doughnut",
+        data: {
+          labels: ["High", "Moderate", "Low"],
+          datasets: [{
+            data: [counts.High, counts.Moderate, counts.Low],
+            backgroundColor: ["#e74c3c", "#f39c12", "#2ecc71"],
+            borderWidth: 2
+          }]
+        },
+        options: { plugins: { legend: { position: "bottom" } } }
+      });
+    }
+
+    // ── Render line chart ─────────────────────────────────────────────────────
+    function renderLine(records) {
+      const recent = [...records].reverse().slice(0, 20);
+      new Chart(document.getElementById("riskLineChart"), {
+        type: "line",
+        data: {
+          labels: recent.map((_, i) => `#${i + 1}`),
+          datasets: [{
+            label: "Risk Probability",
+            data: recent.map(r => r.risk_prob),
+            borderColor: "#3498db",
+            backgroundColor: "rgba(52,152,219,0.1)",
+            tension: 0.3,
+            fill: true,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          scales: { y: { min: 0, max: 1 } },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    // ── Populate table ────────────────────────────────────────────────────────
+    function renderTable(records) {
+      const tbody = document.getElementById("recordsBody");
+      if (!records.length) {
+        tbody.innerHTML = "<tr><td colspan='8'>No predictions yet.</td></tr>";
+        return;
+      }
+      tbody.innerHTML = records.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${r.age}</td>
+          <td>${r.gender === 1 ? "Female" : "Male"}</td>
+          <td>${r.ap_hi}/${r.ap_lo}</td>
+          <td>${["", "Normal", "Above Normal", "Well Above"][r.cholesterol] || r.cholesterol}</td>
+          <td class="badge ${r.risk_level.toLowerCase()}">${r.risk_level}</td>
+          <td>${(r.risk_prob * 100).toFixed(1)}%</td>
+          <td>${new Date(r.created_at).toLocaleString()}</td>
+        </tr>
+      `).join("");
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    (async () => {
+      const records = await fetchRecords();
+      updateCards(records);
+      renderPie(records);
+      renderLine(records);
+      renderTable(records);
+    })();
+  </script>
+</body>
+</html>

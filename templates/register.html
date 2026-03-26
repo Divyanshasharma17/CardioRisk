@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h1>❤️ CardioRisk</h1>
+    <p class="auth-subtitle">Create your account</p>
+
+    <form method="POST" action="/register" id="registerForm" novalidate>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="Enter username"
+               required autofocus autocomplete="username"/>
+        <span class="field-error" id="err-username"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="your@email.com"
+               required autocomplete="email"/>
+        <span class="field-error" id="err-email"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-icon-wrap">
+          <input type="password" id="password" name="password"
+                 placeholder="Create a password" required autocomplete="new-password"/>
+          <button type="button" class="toggle-pw" onclick="togglePw('password', this)" tabindex="-1">👁</button>
+        </div>
+        <!-- Strength meter -->
+        <div class="strength-bar">
+          <div class="strength-fill" id="strengthFill"></div>
+        </div>
+        <span class="strength-label" id="strengthLabel"></span>
+        <ul class="pw-rules" id="pwRules">
+          <li id="rule-len">At least 8 characters</li>
+          <li id="rule-upper">One uppercase letter</li>
+          <li id="rule-lower">One lowercase letter</li>
+          <li id="rule-digit">One number</li>
+          <li id="rule-special">One special character (!@#$%^&*)</li>
+        </ul>
+        <span class="field-error" id="err-password"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="confirm_password">Confirm Password</label>
+        <div class="input-icon-wrap">
+          <input type="password" id="confirm_password" name="confirm_password"
+                 placeholder="Repeat your password" required autocomplete="new-password"/>
+          <button type="button" class="toggle-pw" onclick="togglePw('confirm_password', this)" tabindex="-1">👁</button>
+        </div>
+        <span class="field-error" id="err-confirm"></span>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+    </form>
+
+    <p class="auth-footer">Already have an account? <a href="/login">Sign in</a></p>
+  </div>
+</div>
+
+<script>
+  function togglePw(id, btn) {
+    const input = document.getElementById(id);
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    btn.textContent = isHidden ? "🙈" : "👁";
+  }
+
+  const checks = {
+    "rule-len":     pw => pw.length >= 8,
+    "rule-upper":   pw => /[A-Z]/.test(pw),
+    "rule-lower":   pw => /[a-z]/.test(pw),
+    "rule-digit":   pw => /\d/.test(pw),
+    "rule-special": pw => /[!@#$%^&*]/.test(pw),
+  };
+
+  function getStrength(pw) {
+    return Object.values(checks).filter(fn => fn(pw)).length;
+  }
+
+  document.getElementById("password").addEventListener("input", function () {
+    const pw = this.value;
+    const score = getStrength(pw);
+
+    // Update rule list
+    Object.entries(checks).forEach(([id, fn]) => {
+      const li = document.getElementById(id);
+      li.classList.toggle("rule-pass", fn(pw));
+      li.classList.toggle("rule-fail", pw.length > 0 && !fn(pw));
+    });
+
+    // Update strength bar
+    const fill = document.getElementById("strengthFill");
+    const label = document.getElementById("strengthLabel");
+    const levels = ["", "Very Weak", "Weak", "Fair", "Strong", "Very Strong"];
+    const colors = ["", "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#27ae60"];
+    fill.style.width = (score / 5 * 100) + "%";
+    fill.style.background = colors[score];
+    label.textContent = pw.length ? levels[score] : "";
+    label.style.color = colors[score];
+  });
+
+  document.getElementById("registerForm").addEventListener("submit", function (e) {
+    let valid = true;
+
+    const username = document.getElementById("username").value.trim();
+    if (username.length < 3) {
+      document.getElementById("err-username").textContent = "Username must be at least 3 characters.";
+      valid = false;
+    } else {
+      document.getElementById("err-username").textContent = "";
+    }
+
+    const email = document.getElementById("email").value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      document.getElementById("err-email").textContent = "Enter a valid email address.";
+      valid = false;
+    } else {
+      document.getElementById("err-email").textContent = "";
+    }
+
+    const pw = document.getElementById("password").value;
+    if (getStrength(pw) < 4) {
+      document.getElementById("err-password").textContent = "Password is too weak. Meet at least 4 of the 5 requirements.";
+      valid = false;
+    } else {
+      document.getElementById("err-password").textContent = "";
+    }
+
+    const confirm = document.getElementById("confirm_password").value;
+    if (pw !== confirm) {
+      document.getElementById("err-confirm").textContent = "Passwords do not match.";
+      valid = false;
+    } else {
+      document.getElementById("err-confirm").textContent = "";
+    }
+
+    if (!valid) e.preventDefault();
+  });
+</script>
+{% endblock %}

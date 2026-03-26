@@ -1,0 +1,11 @@
+flask==3.0.3
+flask-login==0.6.3
+flask-mail==0.10.0
+scikit-learn==1.4.2
+pandas==2.2.2
+numpy==1.26.4
+sqlalchemy==2.0.30
+werkzeug==3.1.7
+reportlab==4.4.10
+gunicorn==21.2.0
+python-dotenv==1.2.2

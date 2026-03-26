@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}New Prediction{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="predict-card">
+    <h2>🫀 Patient Risk Assessment</h2>
+    <p class="subtitle">Fill in the patient details below to get a cardiovascular risk prediction.</p>
+
+    <form method="POST" action="/predict-form" id="predictForm" novalidate>
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label for="age">Age (years)</label>
+          <input type="number" id="age" name="age" min="1" max="120" placeholder="e.g. 55" required/>
+          <span class="field-hint">Between 1 and 120</span>
+          <span class="field-error" id="err-age"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="gender">Gender</label>
+          <select id="gender" name="gender" required>
+            <option value="">— Select —</option>
+            <option value="1">Female</option>
+            <option value="2">Male</option>
+          </select>
+          <span class="field-error" id="err-gender"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="height">Height (cm)</label>
+          <input type="number" id="height" name="height" min="100" max="250" placeholder="e.g. 165" required/>
+          <span class="field-hint">Between 100 and 250 cm</span>
+          <span class="field-error" id="err-height"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="weight">Weight (kg)</label>
+          <input type="number" id="weight" name="weight" min="30" max="250" placeholder="e.g. 80" required/>
+          <span class="field-hint">Between 30 and 250 kg</span>
+          <span class="field-error" id="err-weight"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="ap_hi">Systolic BP (mmHg)</label>
+          <input type="number" id="ap_hi" name="ap_hi" min="50" max="300" placeholder="e.g. 120" required/>
+          <span class="field-hint">Upper number, 50–300</span>
+          <span class="field-error" id="err-ap_hi"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="ap_lo">Diastolic BP (mmHg)</label>
+          <input type="number" id="ap_lo" name="ap_lo" min="30" max="200" placeholder="e.g. 80" required/>
+          <span class="field-hint">Lower number, 30–200</span>
+          <span class="field-error" id="err-ap_lo"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="cholesterol">Cholesterol Level</label>
+          <select id="cholesterol" name="cholesterol" required>
+            <option value="">— Select —</option>
+            <option value="1">Normal</option>
+            <option value="2">Above Normal</option>
+            <option value="3">Well Above Normal</option>
+          </select>
+          <span class="field-error" id="err-cholesterol"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="gluc">Glucose Level</label>
+          <select id="gluc" name="gluc" required>
+            <option value="">— Select —</option>
+            <option value="1">Normal</option>
+            <option value="2">Above Normal</option>
+            <option value="3">Well Above Normal</option>
+          </select>
+          <span class="field-error" id="err-gluc"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="smoke">Smoker?</label>
+          <select id="smoke" name="smoke" required>
+            <option value="">— Select —</option>
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+          <span class="field-error" id="err-smoke"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="alco">Alcohol Consumption?</label>
+          <select id="alco" name="alco" required>
+            <option value="">— Select —</option>
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+          <span class="field-error" id="err-alco"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="active">Physically Active?</label>
+          <select id="active" name="active" required>
+            <option value="">— Select —</option>
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+          <span class="field-error" id="err-active"></span>
+        </div>
+
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">🔍 Run Prediction</button>
+        <button type="reset" class="btn btn-outline" onclick="clearErrors()">✖ Clear Form</button>
+      </div>
+    </form>
+
+    {% if result %}
+    <!-- ── Result banner ── -->
+    <div class="result-box {{ result.risk_level | lower }}">
+      <h3>
+        {% if result.risk_level == "High" %}🔴
+        {% elif result.risk_level == "Moderate" %}🟡
+        {% else %}🟢{% endif %}
+        Prediction Result
+      </h3>
+      <div class="result-grid">
+        <div class="result-item">
+          <span class="result-label">Risk Level</span>
+          <span class="badge {{ result.risk_level | lower }}">{{ result.risk_level }}</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Probability</span>
+          <span class="result-value">{{ "%.1f"|format(result.risk_probability * 100) }}%</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Diagnosis</span>
+          <span class="result-value">
+            {{ "Cardiovascular disease risk detected" if result.risk_label == 1 else "No significant risk detected" }}
+          </span>
+        </div>
+      </div>
+      <a href="/download-report" class="btn btn-primary" style="margin-top:1rem; display:inline-block;">
+        📄 Download PDF Report
+      </a>
+    </div>
+
+    <!-- ── Risk Factor Breakdown ── -->
+    {% if risk_factors %}
+    <div class="rf-section">
+      <h3>📊 Risk Factor Breakdown</h3>
+      <p class="subtitle">Which factors influenced this prediction the most.</p>
+      <div class="rf-bars">
+        {% set max_abs = risk_factors[0].contribution | abs %}
+        {% for f in risk_factors[:8] %}
+        {% set pct = ((f.contribution | abs) / max_abs * 100) | round | int %}
+        {% set direction = "risk-up" if f.contribution > 0 else "risk-down" %}
+        <div class="rf-row">
+          <span class="rf-label">{{ f.feature }}</span>
+          <div class="rf-bar-wrap">
+            <div class="rf-bar {{ direction }}" style="width: {{ pct }}%"></div>
+          </div>
+          <span class="rf-value {{ direction }}">
+            {{ "▲" if f.contribution > 0 else "▼" }}
+            {{ "%+.3f" | format(f.contribution) }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="rf-legend">
+        <span class="dot risk-up"></span> Increases risk &nbsp;
+        <span class="dot risk-down"></span> Reduces risk
+      </p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+  const rules = {
+    age:   { min: 1,   max: 120, msg: "Age must be between 1 and 120." },
+    height:{ min: 100, max: 250, msg: "Height must be between 100 and 250 cm." },
+    weight:{ min: 30,  max: 250, msg: "Weight must be between 30 and 250 kg." },
+    ap_hi: { min: 50,  max: 300, msg: "Systolic BP must be between 50 and 300." },
+    ap_lo: { min: 30,  max: 200, msg: "Diastolic BP must be between 30 and 200." },
+  };
+  const selects = ["gender","cholesterol","gluc","smoke","alco","active"];
+
+  function showError(id, msg) {
+    const el = document.getElementById("err-" + id);
+    const inp = document.getElementById(id);
+    if (el)  el.textContent = msg;
+    if (inp) inp.classList.toggle("input-error", !!msg);
+  }
+  function clearErrors() {
+    [...Object.keys(rules), ...selects].forEach(id => showError(id, ""));
+  }
+
+  Object.keys(rules).forEach(id => {
+    document.getElementById(id)?.addEventListener("input", function() {
+      const v = parseFloat(this.value), r = rules[id];
+      showError(id, this.value === "" ? "Required." : (isNaN(v)||v<r.min||v>r.max) ? r.msg : "");
+    });
+  });
+  selects.forEach(id => {
+    document.getElementById(id)?.addEventListener("change", function() {
+      showError(id, this.value === "" ? "Please select an option." : "");
+    });
+  });
+
+  function validateBP() {
+    const hi = parseFloat(document.getElementById("ap_hi").value);
+    const lo = parseFloat(document.getElementById("ap_lo").value);
+    if (!isNaN(hi) && !isNaN(lo) && lo >= hi) {
+      showError("ap_lo", "Diastolic BP must be lower than systolic BP."); return false;
+    }
+    return true;
+  }
+  document.getElementById("ap_hi").addEventListener("input", validateBP);
+  document.getElementById("ap_lo").addEventListener("input", validateBP);
+
+  document.getElementById("predictForm").addEventListener("submit", function(e) {
+    let valid = true;
+    Object.keys(rules).forEach(id => {
+      const el = document.getElementById(id), v = parseFloat(el.value), r = rules[id];
+      if (el.value===""||isNaN(v)||v<r.min||v>r.max) { showError(id, el.value===""?"Required.":r.msg); valid=false; }
+    });
+    selects.forEach(id => {
+      if (document.getElementById(id).value==="") { showError(id,"Please select an option."); valid=false; }
+    });
+    if (!validateBP()) valid = false;
+    if (!valid) { e.preventDefault(); document.querySelector(".input-error")?.scrollIntoView({behavior:"smooth",block:"center"}); }
+  });
+</script>
+{% endblock %}

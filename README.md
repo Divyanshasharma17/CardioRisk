@@ -2,7 +2,6 @@
 
 A production-ready REST API for predicting cardiovascular disease risk from patient health data, built with Python, Flask, and scikit-learn.
 
----
 
 ## Project Structure
 

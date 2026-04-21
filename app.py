@@ -61,8 +61,20 @@ def load_user(user_id):
 
 # ── ML artifacts ──────────────────────────────────────────────────────────────
 logger.info("Loading model artifacts...")
-MODEL, SCALER = load_artifacts()
-init_db()
+try:
+    MODEL, SCALER = load_artifacts()
+    logger.info("Model loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load model: {e}")
+    raise
+
+try:
+    init_db()
+    logger.info("Database initialized")
+except Exception as e:
+    logger.error(f"Failed to init DB: {e}")
+    raise
+
 logger.info("CardioRisk API ready")
 
 
@@ -351,3 +363,10 @@ def method_not_allowed(e):
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+else:
+    # This runs under gunicorn — catch startup errors explicitly
+    import traceback
+    try:
+        pass  # app is already initialized above
+    except Exception as e:
+        traceback.print_exc()
